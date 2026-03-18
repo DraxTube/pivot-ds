@@ -27,6 +27,7 @@ ASFLAGS		:=	$(ARCH)
 
 LDFLAGS		:=	-specs=ds_arm9.specs $(ARCH) -Wl,-Map,$(notdir $*.map)
 LIBS		:=	-lnds9 -lm
+LIBDIRS		:=	$(LIBNDS)
 
 #---------------------------------------------------------------------------------
 ifneq ($(BUILD),$(notdir $(CURDIR)))
