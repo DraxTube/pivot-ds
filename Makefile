@@ -47,6 +47,7 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 			-I$(CURDIR)/$(BUILD)
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
+export LDLIBS	:=	$(LIBPATHS) $(LIBS)
 
 .PHONY: $(BUILD) clean all
 
