@@ -169,8 +169,8 @@ static u16* vramSub;
 /* ═══════════════════════════════════════════════════════════════
    Memory helpers
    ═══════════════════════════════════════════════════════════════ */
-static void* xmalloc(int sz){ void* p=malloc(sz); if(!p) swiSoftReset(); return p; }
-static void* xrealloc(void* p,int sz){ void* q=realloc(p,sz); if(!q) swiSoftReset(); return q; }
+static void* xmalloc(int sz){ void* p=malloc(sz); if(!p){ while(1){} } return p; }
+static void* xrealloc(void* p,int sz){ void* q=realloc(p,sz); if(!q){ while(1){} } return q; }
 
 /* Deep-copy joint array */
 static Joint* joints_clone(const Joint* src, int n){
@@ -317,7 +317,8 @@ static void draft_add_joint(int x,int y){
     if(draft_jn>0){
         par=draft_jn-1;
         int dx=x-draft_joints[par].x, dy=y-draft_joints[par].y;
-        len=(int)sqrtf((float)(dx*dx+dy*dy)); if(len<1)len=1;
+        len=(int)sqrtf((float)(dx*dx+dy*dy));
+        if(len<1){len=1;}
     }
     draft_joints[draft_jn++]=(Joint){x,y,par,len};
 }
@@ -393,8 +394,9 @@ static const u8 fnt[][6]={
 {17,17,17,17,14,0},{17,17,17,10,4,0},{17,17,21,27,17,0},{17,10,4,10,17,0},{17,10,4,4,4,0},{31,2,4,8,31,0},
 };
 static void dchar(u16*fb,int px,int py,char c,u16 col){
-    if(c>='a'&&c<='z')c-=32; if(c<' '||c>'Z')return;
-    const u8*g=fnt[c-' ']; for(int r=0;r<6;r++){u8 b=g[r];for(int i=4;i>=0;i--)if(b&(1<<i))pset(fb,px+(4-i),py+r,col);}
+    if(c>='a'&&c<='z'){c-=32;}
+    if(c<' '||c>'Z'){return;}
+    const u8*g=fnt[c-' ']; for(int r=0;r<6;r++){u8 b=g[r];for(int i=4;i>=0;i--){if(b&(1<<i)){pset(fb,px+(4-i),py+r,col);}}}
 }
 static void dstr(u16*fb,int px,int py,const char*s,u16 col){while(*s){dchar(fb,px,py,*s,col);px+=6;s++;}}
 static int sl(const char*s){int n=0;while(*s++)n++;return n;}
@@ -436,7 +438,8 @@ static void draw_obj(u16*fb,const Object*o,bool edit,bool onion,int cx,int cy){
         }
     } else if(o->type==1){ /* ball */
         int dx=o->joints[1].x-o->joints[0].x, dy=o->joints[1].y-o->joints[0].y;
-        int r=(int)sqrtf((float)(dx*dx+dy*dy)); if(r<1)r=1;
+        int r=(int)sqrtf((float)(dx*dx+dy*dy));
+        if(r<1){r=1;}
         fcircle(fb,o->joints[0].x-cx,o->joints[0].y-cy,r,col);
     } else { /* stickman */
         for(int i=1;i<o->num_joints;i++){
@@ -527,11 +530,11 @@ static void render_edit(int sel_obj){
         int x0=9999,y0=9999,x1=-9999,y1=-9999;
         for(int i=0;i<ob->num_joints;i++){
             int jx=ob->joints[i].x-cam_x,jy=ob->joints[i].y-cam_y;
-            if(jx<x0)x0=jx;if(jx>x1)x1=jx;if(jy<y0)y0=jy;if(jy>y1)y1=jy;
+            if(jx<x0){x0=jx;} if(jx>x1){x1=jx;} if(jy<y0){y0=jy;} if(jy>y1){y1=jy;}
         }
-        x0-=10;y0-=10;x1+=10;y1+=10;
-        if(x0<0)x0=0;if(y0<0)y0=0;if(x1>=SCREEN_W)x1=SCREEN_W-1;if(y1>=CANVAS_H)y1=CANVAS_H-1;
-        if(x1>x0&&y1>y0) hrect(bbSub,x0,y0,x1,y1,COL_SEL);
+        x0-=10; y0-=10; x1+=10; y1+=10;
+        if(x0<0){x0=0;} if(y0<0){y0=0;} if(x1>=SCREEN_W){x1=SCREEN_W-1;} if(y1>=CANVAS_H){y1=CANVAS_H-1;}
+        if(x1>x0&&y1>y0){ hrect(bbSub,x0,y0,x1,y1,COL_SEL); }
     }
 
     /* UI strip */
@@ -574,10 +577,12 @@ static void draw_shape_thumb(u16*fb, CustomShape*cs, int bx0, int by0, int bx1, 
     int minx=9999,miny=9999,maxx=-9999,maxy=-9999;
     for(int i=0;i<cs->num_ink;i++){
         int x=(int)cs->ink[i].x, y=(int)cs->ink[i].y;
-        if(x<minx)minx=x; if(x>maxx)maxx=x;
-        if(y<miny)miny=y; if(y>maxy)maxy=y;
+        if(x==INK_LIFT){continue;}
+        if(x<minx){minx=x;} if(x>maxx){maxx=x;}
+        if(y<miny){miny=y;} if(y>maxy){maxy=y;}
     }
-    int pw=maxx-minx+1, ph=maxy-miny+1; if(pw<1)pw=1; if(ph<1)ph=1;
+    int pw=maxx-minx+1, ph=maxy-miny+1;
+    if(pw<1){pw=1;} if(ph<1){ph=1;}
     int tw=bx1-bx0-4, th=by1-by0-4;
     /* uniform scale, keep aspect */
     int scale_num=1, scale_den=1;
@@ -622,9 +627,12 @@ static void render_shape_menu(void){
             int minx=9999,miny=9999,maxx=-9999,maxy=-9999;
             for(int i=0;i<cs->num_ink;i++){
                 int x=(int)cs->ink[i].x,y=(int)cs->ink[i].y;
-                if(x<minx)minx=x;if(x>maxx)maxx=x;if(y<miny)miny=y;if(y>maxy)maxy=y;
+                if(x==INK_LIFT){continue;}
+                if(x<minx){minx=x;} if(x>maxx){maxx=x;}
+                if(y<miny){miny=y;} if(y>maxy){maxy=y;}
             }
-            int pw=maxx-minx+1,ph=maxy-miny+1;if(pw<1)pw=1;if(ph<1)ph=1;
+            int pw=maxx-minx+1,ph=maxy-miny+1;
+            if(pw<1){pw=1;} if(ph<1){ph=1;}
             int tw=212,th=106,scale_den=(pw>ph)?(pw+tw-1)/tw:(ph+th-1)/th;
             if(scale_den<1)scale_den=1;
             for(int i=0;i<cs->num_joints;i++){
