@@ -157,9 +157,6 @@ static u16  bbSub [SCREEN_W * SCREEN_H];
 static u16* vramMain;
 static u16* vramSub;
 
-/* Camera live-view flag */
-static bool cam_live = false;
-
 /* ═══════════════════════════════════════════════════════════════
    Memory helpers
    ═══════════════════════════════════════════════════════════════ */
@@ -467,17 +464,9 @@ static void sd_delete(const char* path){
 /* ═══════════════════════════════════════════════════════════════
    Camera helpers
    ═══════════════════════════════════════════════════════════════ */
-static void cam_start(void){
-    /* No hardware camera API in standard libnds.
-       We freeze the current top screen into bbMain so the user sees it,
-       then A will copy it to bg_buf. */
-    dmaCopyWords(3, vramMain, bbMain, SCREEN_W * SCREEN_H * 2);
-    cam_live = true;
-}
+/* cam_capture: freeze current top screen into bg_buf as background */
+static void cam_stop(void){ /* no-op, kept for call-site clarity */ }
 
-static void cam_stop(void){ cam_live = false; }
-
-/* Freeze current top screen into bg_buf as a background */
 static void cam_capture(void){
     dmaCopyWords(3, vramMain, bg_buf, SCREEN_W * SCREEN_H * 2);
     bg_active = true;
@@ -955,10 +944,10 @@ int main(void){
     if(fat_ok){ mkdir(SAVE_DIR, 0777); sd_scan(); }
 
     /* Init animation state */
-    memset(frames,    0, sizeof(frames));
-    memset(undo_buf,  0, sizeof(undo_buf));
-    memset(saves,     0, sizeof(saves));
-    memset(bg_buf,    0, sizeof(bg_buf));
+    memset(frames,       0, sizeof(frames));
+    memset(undo_buf,     0, sizeof(undo_buf));
+    memset(save_entries, 0, sizeof(save_entries));
+    memset(bg_buf,       0, sizeof(bg_buf));
     reset_all();
 
     int  sel_obj   = -1, sel_joint = -1;
