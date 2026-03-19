@@ -105,9 +105,9 @@ static UndoSnap  undo_buf[UNDO_LEVELS];
 static int       undo_top    = 0;
 static int       undo_count  = 0;
 
-/* Camera background */
-static u16       bg_buf[SCREEN_W * SCREEN_H];
-static bool      bg_active   = false;
+/* Camera background — heap allocated in main() */
+static u16*  bg_buf    = NULL;
+static bool  bg_active = false;
 
 /* Palette (10 colours) */
 static const u16 palette[] = {
@@ -151,9 +151,9 @@ static const char* kbd_rows[] = {
 static char notif_msg[32] = "";
 static int  notif_timer   = 0;
 
-/* Double buffers */
-static u16  bbMain[SCREEN_W * SCREEN_H];
-static u16  bbSub [SCREEN_W * SCREEN_H];
+/* Double buffers — must be 4-byte aligned for DMA */
+static u16  bbMain[SCREEN_W * SCREEN_H] __attribute__((aligned(4)));
+static u16  bbSub [SCREEN_W * SCREEN_H] __attribute__((aligned(4)));
 static u16* vramMain;
 static u16* vramSub;
 
@@ -927,28 +927,45 @@ static void render_camera(void){
    Main
    ═══════════════════════════════════════════════════════════════ */
 int main(void){
-    /* Video init */
+    /* Video init — bitmap mode on both screens
+       VRAM_A (128KB) → main BG at offset 0  → BG3 bitmap at 0x06000000
+       VRAM_C (128KB) → sub  BG at offset 0  → BG3 bitmap at 0x06200000 */
     videoSetMode(MODE_5_2D);
     vramSetBankA(VRAM_A_MAIN_BG);
+    /* BgType_Bmp16, 256x256, mapBase=0 (irrelevant for bitmap), tileBase=0 */
     int bgM = bgInit(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
+    bgSetPriority(bgM, 0);
 
     videoSetModeSub(MODE_5_2D);
     vramSetBankC(VRAM_C_SUB_BG);
     int bgS = bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
+    bgSetPriority(bgS, 0);
 
-    vramMain = bgGetGfxPtr(bgM);
-    vramSub  = bgGetGfxPtr(bgS);
+    vramMain = (u16*)bgGetGfxPtr(bgM);
+    vramSub  = (u16*)bgGetGfxPtr(bgS);
 
-    /* Init FAT (SD card) */
+    /* Init FAT — guarded: if no card, fat_ok stays false, all SD calls are no-ops */
     fat_ok = fatInitDefault();
-    if(fat_ok){ mkdir(SAVE_DIR, 0777); sd_scan(); }
+    if(fat_ok){
+        mkdir(SAVE_DIR, 0777);
+        sd_scan();
+    }
+
+    /* Allocate camera background buffer on heap */
+    bg_buf = (u16*)xmalloc(SCREEN_W * SCREEN_H * 2);
+    memset(bg_buf, 0, SCREEN_W * SCREEN_H * 2);
 
     /* Init animation state */
     memset(frames,       0, sizeof(frames));
     memset(undo_buf,     0, sizeof(undo_buf));
     memset(save_entries, 0, sizeof(save_entries));
-    memset(bg_buf,       0, sizeof(bg_buf));
     reset_all();
+
+    /* Clear back-buffers and VRAM before first frame */
+    dmaFillWords(0, bbMain,   SCREEN_W * SCREEN_H * 2);
+    dmaFillWords(0, bbSub,    SCREEN_W * SCREEN_H * 2);
+    dmaFillWords(0, vramMain, SCREEN_W * SCREEN_H * 2);
+    dmaFillWords(0, vramSub,  SCREEN_W * SCREEN_H * 2);
 
     int  sel_obj   = -1, sel_joint = -1;
     int  last_tx   = 0,  last_ty   = 0;
